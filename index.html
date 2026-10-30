@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sphynx — open-source bot defense</title>
+<meta name="description" content="Sphynx decides per request whether a visitor is a browser or a script, and challenges only what looks automated. Open code, private weights: self-host with your own model, or use our hosted scorer. Launching soon at sphynx.site.">
+<meta name="theme-color" content="#08070a">
+<meta property="og:title" content="Sphynx — open-source bot defense">
+<meta property="og:description" content="Per-request browser-vs-script scoring, a challenge only for what looks automated. Open code, private weights, your model or ours. Launching soon.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sphynx.site">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/cinzel.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face{
+    font-family:"Cinzel"; src:url("assets/fonts/cinzel.woff2") format("woff2");
+    font-weight:400 900; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:"Instrument Sans"; src:url("assets/fonts/instrument-sans.woff2") format("woff2");
+    font-weight:400 700; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:"Instrument Sans"; src:url("assets/fonts/instrument-sans-italic.woff2") format("woff2");
+    font-weight:400 700; font-style:italic; font-display:swap;
+  }
+
+  :root{
+    --ink:#08070a;
+    --ink-2:#0d0b0f;
+    --bone:#f4ece8;
+    --bone-dim:#b6a8a4;
+    --mute:#8a7b78;
+    --blood:#ff2f2f;
+    --blood-deep:#c21313;
+    --rule:rgba(255,47,47,.22);
+    --step:1;
+  }
+
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--bone);
+    font-family:"Instrument Sans",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    display:grid;
+    place-items:center;
+    padding:clamp(2rem,6vh,4.5rem) clamp(1.25rem,5vw,2rem);
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* ---------- atmosphere ---------- */
+  .halo{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(26rem 15rem at 40% 17%, rgba(255,47,47,.075), transparent 60%),
+      radial-gradient(46rem 32rem at 88% 108%, rgba(150,6,6,.035), transparent 62%);
+  }
+  .grain{
+    position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode:screen;
+  }
+  .edge{
+    position:fixed; z-index:1; pointer-events:none;
+    inset:clamp(10px,2.4vh,22px);
+    border:1px solid rgba(255,47,47,.10);
+  }
+
+  /* ---------- layout ---------- */
+  main{
+    position:relative; z-index:2;
+    width:100%; max-width:34rem;
+    display:flex; flex-direction:column;
+  }
+
+  /* ---------- crest ---------- */
+  .crest{
+    width:clamp(196px,30vw,286px); height:auto;
+    margin:0 0 clamp(1.6rem,4.4vh,2.6rem) -.4rem;
+    overflow:visible;
+    filter:drop-shadow(0 0 22px rgba(255,47,47,.30));
+  }
+  .crest path,.crest circle{
+    stroke:var(--blood);
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    vector-effect:non-scaling-stroke;
+  }
+  .crest .c-ln{stroke-width:1.9}
+  .crest .c-fw{stroke-width:1.3; opacity:.9}
+  .crest .c-iris{stroke-width:1.5}
+  .crest .c-pupil{fill:var(--blood); stroke:none}
+
+  /* ---------- type ---------- */
+  .wordmark{
+    font-family:"Cinzel",Georgia,serif;
+    font-weight:700;
+    font-size:clamp(2.6rem,8.4vw,4.1rem);
+    line-height:.94;
+    letter-spacing:.16em;
+    margin:0 0 1.15rem -.06em;
+    color:var(--bone);
+    text-shadow:0 0 42px rgba(255,47,47,.18);
+    display:flex;
+  }
+  .wordmark span{display:inline-block; will-change:transform,opacity}
+
+  h1.headline em{font-style:normal; color:var(--blood);}
+  h1.headline{
+    font-family:"Cinzel",Georgia,serif;
+    font-weight:400;
+    font-size:clamp(1.22rem,2.8vw,1.68rem);
+    line-height:1.36;
+    letter-spacing:.005em;
+    color:var(--bone);
+    margin:1.5rem 0 0;
+    max-width:30ch;
+    text-wrap:balance;
+  }
+
+  .lede{
+    font-size:1.0125rem;
+    line-height:1.68;
+    color:var(--bone-dim);
+    margin:1.05rem 0 0;
+    max-width:50ch;
+  }
+  .lede em{font-style:normal; color:var(--bone)}
+
+  .soon{
+    margin:1.5rem 0 0;
+    font-family:"Instrument Sans",system-ui,sans-serif;
+    font-style:italic;
+    font-weight:500;
+    font-size:1.18rem;
+    line-height:1.4;
+    letter-spacing:.002em;
+    color:var(--bone);
+  }
+
+
+  /* ---------- subscribe ---------- */
+  .sub{margin:clamp(2rem,5vh,2.75rem) 0 0}
+  .sub-label{
+    display:block;
+    font-size:.86rem;
+    color:var(--bone-dim);
+    margin:0 0 .6rem;
+  }
+  .field{
+    display:flex;
+    border:1px solid rgba(255,47,47,.34);
+    background:linear-gradient(180deg, rgba(255,47,47,.045), rgba(255,47,47,.012));
+    transition:border-color .25s ease, box-shadow .25s ease, background .25s ease;
+  }
+  .field:focus-within{
+    border-color:rgba(255,47,47,.72);
+    box-shadow:0 0 0 1px rgba(255,47,47,.18), 0 10px 40px -18px rgba(255,47,47,.55);
+    background:linear-gradient(180deg, rgba(255,47,47,.07), rgba(255,47,47,.02));
+  }
+  input[type=email]{
+    flex:1 1 auto; min-width:0;
+    appearance:none; border:0; background:transparent;
+    color:var(--bone);
+    font:inherit; font-size:.95rem;
+    padding:.95rem 1rem;
+    caret-color:var(--blood);
+    letter-spacing:.01em;
+  }
+  input[type=email]::placeholder{color:#8b7c79}
+  .hp{position:absolute; left:-9999px; width:1px; height:1px; opacity:0; pointer-events:none}
+  input[type=email]:focus{outline:none}
+
+  button{
+    flex:0 0 auto;
+    appearance:none; border:0; border-left:1px solid rgba(255,47,47,.34);
+    background:rgba(255,47,47,.10);
+    color:var(--bone);
+    font-family:"Instrument Sans",sans-serif;
+    font-size:.88rem; font-weight:500; letter-spacing:.02em;
+    padding:0 1.15rem;
+    cursor:pointer;
+    transition:background .2s ease, color .2s ease, box-shadow .3s ease;
+  }
+  button:hover{background:var(--blood); color:#12060a; box-shadow:0 0 28px -6px rgba(255,47,47,.6)}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:none; background:var(--blood); color:#12060a; box-shadow:0 0 0 2px var(--ink),0 0 0 3px var(--blood)}
+  .field.err{border-color:rgba(255,90,60,.8); animation:shake .32s ease}
+  @keyframes shake{
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)}
+  }
+
+  .fine:empty{display:none}
+  .fine{
+    font-size:.84rem; line-height:1.6;
+    color:#a39490;
+    margin:.7rem 0 0;
+  }
+  .fine .msg{color:var(--blood)}
+  .done{
+    margin:0;
+    padding:1.05rem 0 .25rem;
+    border-top:1px solid rgba(255,47,47,.34);
+    font-size:.95rem; line-height:1.6;
+    color:var(--bone);
+  }
+  .done b{color:var(--blood); font-weight:500}
+
+  /* ---------- footer ---------- */
+  footer{
+    position:relative; z-index:2;
+    width:100%; max-width:34rem;
+    margin-top:clamp(2.5rem,7vh,4rem);
+    padding-top:1rem;
+    border-top:1px solid rgba(255,47,47,.13);
+    display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+    font-size:.84rem;
+    color:#8a7b78;
+  }
+  footer b{color:var(--mute); font-weight:400}
+  footer .mail{
+    color:var(--bone-dim); text-decoration:none;
+    border-bottom:1px solid rgba(255,47,47,.3);
+    padding-bottom:1px;
+    transition:color .2s ease, border-color .2s ease;
+  }
+  footer .mail:hover{color:var(--blood); border-color:var(--blood)}
+
+  /* ---------- browser surfaces ---------- */
+  ::selection{background:rgba(255,47,47,.85); color:#0a0507}
+  ::-webkit-scrollbar{width:10px; height:10px}
+  ::-webkit-scrollbar-track{background:#08070a}
+  ::-webkit-scrollbar-thumb{background:#26171a; border:2px solid #08070a}
+  ::-webkit-scrollbar-thumb:hover{background:#3d1d21}
+  a{color:var(--blood); text-underline-offset:.22em; text-decoration-thickness:1px}
+  :focus-visible{outline:2px solid rgba(255,47,47,.8); outline-offset:3px}
+
+  /* ---------- motion ---------- */
+  @keyframes rise{from{opacity:0; transform:translate3d(0,.55em,0)} to{opacity:1; transform:none}}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  @keyframes breathe{from{opacity:.55} to{opacity:1}}
+
+  .crest path,.crest circle{
+    stroke-dasharray:1; stroke-dashoffset:1;
+    animation:draw 1.1s cubic-bezier(.16,1,.3,1) forwards;
+    opacity:1;
+  }
+  .crest .c-pupil{animation:fade-pupil .8s ease .55s both}
+  @keyframes fade-pupil{from{opacity:0} to{opacity:1}}
+
+  .wordmark span{opacity:0; animation:rise .9s cubic-bezier(.16,1,.3,1) forwards}
+  .reveal{opacity:0; animation:rise .95s cubic-bezier(.16,1,.3,1) forwards}
+
+  @media (prefers-reduced-motion:reduce){
+    .crest path,.crest circle,.crest .c-pupil,.wordmark span,.reveal{
+      animation:none !important; opacity:1 !important; stroke-dashoffset:0 !important;
+    }
+  }
+
+  /* short laptop screens: compress instead of scrolling */
+  @media (max-height:800px){
+    body{padding-top:1.4rem; padding-bottom:1.4rem}
+    .crest{width:clamp(146px,19vw,178px); margin-bottom:1.15rem}
+    .wordmark{font-size:clamp(2.2rem,6.2vw,3.1rem); margin-bottom:.85rem}
+    h1.headline em{font-style:normal; color:var(--blood);}
+  h1.headline{margin-top:1.05rem; font-size:clamp(1.1rem,2.2vw,1.36rem)}
+    .lede{margin-top:.85rem}
+    .soon{margin-top:1.1rem}
+    .sub{margin-top:1.35rem}
+    footer{margin-top:1.6rem}
+  }
+
+  @media (max-width:520px){
+    .field{display:grid; grid-template-columns:1fr; border-color:rgba(255,47,47,.34)}
+    button{border-left:0; border-top:1px solid rgba(255,47,47,.34); padding:.9rem 1rem; width:100%}
+    .wordmark{letter-spacing:.12em}
+    footer{gap:.35rem}
+  }
+</style>
+</head>
+<body>
+<div class="halo"></div>
+<div class="grain"></div>
+<div class="edge"></div>
+
+<main>
+  <svg class="crest" viewBox="12 44 296 68" role="img" aria-label="Sphynx crest: a winged eye">
+    <g>
+      <path class="c-ln" pathLength="1" d="M 130 76 C 142 57 178 57 190 76 C 178 95 142 95 130 76 Z"/>
+      <circle class="c-iris" pathLength="1" cx="160" cy="76" r="9.5"/>
+      <circle class="c-pupil" cx="160" cy="76" r="3.6"/>
+    </g>
+    <g transform="translate(320,0) scale(-1,1)">
+      <path class="c-fw" pathLength="1" d="M 184 81.6 C 237.1 80.88 288 68.96 293 53.98 Q 302 52 293 50.02 C 286 60.68 237.1 74.76 184 74.4 Z"/>
+      <path class="c-fw" pathLength="1" d="M 184 88.9 C 230.8 88.22 274 79.24 279 67.37 Q 288 65.5 279 63.63 C 272 71.42 230.8 82.44 184 82.1 Z"/>
+      <path class="c-fw" pathLength="1" d="M 184 96.2 C 223.6 95.56 258 90.02 263 81.76 Q 272 80 263 78.24 C 256 82.66 223.6 90.12 184 89.8 Z"/>
+      <path class="c-fw" pathLength="1" d="M 184 103.5 C 214.6 102.9 238 100.3 243 95.15 Q 252 93.5 243 91.85 C 236 93.4 214.6 97.8 184 97.5 Z"/>
+    </g>
+    <path class="c-fw" pathLength="1" d="M 184 81.6 C 237.1 80.88 288 68.96 293 53.98 Q 302 52 293 50.02 C 286 60.68 237.1 74.76 184 74.4 Z"/>
+    <path class="c-fw" pathLength="1" d="M 184 88.9 C 230.8 88.22 274 79.24 279 67.37 Q 288 65.5 279 63.63 C 272 71.42 230.8 82.44 184 82.1 Z"/>
+    <path class="c-fw" pathLength="1" d="M 184 96.2 C 223.6 95.56 258 90.02 263 81.76 Q 272 80 263 78.24 C 256 82.66 223.6 90.12 184 89.8 Z"/>
+    <path class="c-fw" pathLength="1" d="M 184 103.5 C 214.6 102.9 238 100.3 243 95.15 Q 252 93.5 243 91.85 C 236 93.4 214.6 97.8 184 97.5 Z"/>
+  </svg>
+
+  <p class="wordmark" aria-label="SPHYNX"><span>S</span><span>P</span><span>H</span><span>Y</span><span>N</span><span>X</span></p>
+
+  <h1 class="headline reveal" style="animation-delay:.42s">It guarded the road to Thebes.<br>Now it guards <em>your origin</em>.</h1>
+
+  <p class="lede reveal" style="animation-delay:.52s">
+    Sphynx is bot defense that runs on your own infrastructure. Every decision is made
+    in-house, so <em>your traffic, your visitors' fingerprints and your thresholds never
+    leave your servers</em>. Open source and free to self-host — fork it, train your own
+    model, or use our hosted scorer.
+  </p>
+
+  <p class="soon reveal" style="animation-delay:.58s">We will be launching soon.</p>
+
+
+  <section class="sub reveal" style="animation-delay:.7s">
+    <label class="sub-label" for="email">Launch notice</label>
+    <form class="field" id="sub-form" novalidate>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="hp">
+      <input type="email" id="email" name="email" placeholder="you@domain.com" autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" pattern="[^@\s]+@[^@\s]+\.[A-Za-z]{2,}" maxlength="254" required aria-label="Your email address">
+      <button type="submit">Notify me</button>
+    </form>
+    <p class="done" id="done" hidden></p>
+    <p class="fine" id="fine" role="status" aria-live="polite"></p>
+  </section>
+
+  <footer>
+    <span>Contact</span>
+    <a class="mail" href="mailto:help@sphynx.site">help@sphynx.site</a>
+  </footer>
+</main>
+
+<script>
+(function () {
+  // Pages Function at /functions/subscribe.js (Cloudflare Pages + KV). Swap for Buttondown,
+  // Listmonk or your own Go endpoint; the request body stays {"email": "..."}.
+  const ENDPOINT = "/subscribe";
+  const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+
+  const form = document.getElementById("sub-form");
+  const input = document.getElementById("email");
+  const fine = document.getElementById("fine");
+  const done = document.getElementById("done");
+  const defaultFine = fine.textContent;
+
+  document.querySelectorAll(".wordmark span").forEach(function (el, i) {
+    el.style.animationDelay = (0.16 + i * 0.055) + "s";
+  });
+
+  document.querySelectorAll(".crest path, .crest circle").forEach(function (el, i) {
+    el.style.animationDelay = (i * 0.045) + "s";
+  });
+
+  // strict enough that anything without a real mailbox shape is rejected
+  function isEmail(v) {
+    if (v.length < 6 || v.length > 254) return false;
+    if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(v)) return false;
+    const at = v.lastIndexOf("@");
+    const local = v.slice(0, at);
+    const domain = v.slice(at + 1);
+    if (local.length > 64 || domain.length > 255) return false;
+    if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) return false;
+    if (domain.startsWith("-") || domain.endsWith("-") || domain.includes("..")) return false;
+    if (!/^[A-Za-z0-9.-]+$/.test(domain)) return false;
+    return true;
+  }
+
+  function fail(msg) {
+    form.classList.remove("err");
+    void form.offsetWidth;
+    form.classList.add("err");
+    fine.innerHTML = '<span class="msg">' + msg + "</span>";
+  }
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const value = input.value.trim();
+
+    if (!isEmail(value)) {
+      fail("That address looks incomplete.");
+      input.focus();
+      return;
+    }
+
+    const btn = form.querySelector("button");
+    btn.disabled = true;
+    btn.textContent = "Sending…";
+
+    try {
+      if (ENDPOINT && !LOCAL) {
+        const res = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: value,
+            website: document.getElementById("website")?.value.trim() ?? ""
+          })
+        });
+        // 409 = already on the list, which is still a success from the visitor's side
+        if (!res.ok && res.status !== 409) throw new Error("status " + res.status);
+      } else {
+        const key = "sphynx:signups";
+        const list = JSON.parse(localStorage.getItem(key) || "[]");
+        if (!list.includes(value)) list.push(value);
+        localStorage.setItem(key, JSON.stringify(list));
+      }
+
+      form.hidden = true;
+      form.classList.remove("err");
+      done.hidden = false;
+      done.innerHTML = "You are on the list — <b>" + value.replace(/[<>&"]/g, "") + "</b>";
+      fine.textContent = "";
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Notify me";
+      fail("Signup failed. Try again in a moment.");
+    }
+  });
+
+  input.addEventListener("input", function () {
+    if (form.classList.contains("err")) {
+      form.classList.remove("err");
+      fine.textContent = defaultFine;
+    }
+  });
+})();
+</script>
+</body>
+</html>

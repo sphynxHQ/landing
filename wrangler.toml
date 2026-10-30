@@ -1,0 +1,14 @@
+name = "sphynx-site"
+compatibility_date = "2026-01-01"
+pages_build_output_dir = "dist"
+
+# Static page + one Pages Function. Nothing here needs a build step.
+
+[[d1_databases]]
+binding = "SUBSCRIBERS"
+database_name = "sphynx-subscribers"
+database_id = "78b8bb3c-ef19-402c-b0a0-1a771571bf63"
+
+# ADMIN_TOKEN is a secret, set it with:
+#   npx wrangler pages secret put ADMIN_TOKEN
+# Do not put it here — this file is in the repo.

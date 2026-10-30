@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# Nothing here but a launch page. No sitemap yet, on purpose.
